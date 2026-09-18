@@ -204,8 +204,8 @@
     tabButtons.forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
     panels.forEach(p=>p.classList.toggle('active', p.id==='panel-'+name));
     if(name === 'admin'){
-      warmUpBackend();        // 先偷偷喚醒後端，降低登入時的冷啟動等待
-      maybeAutoLoginAdmin();  // 這台裝置記住過密碼的話，自動帶入並登入
+      warmUpBackend();        // 先喚醒後端
+      maybeAutoLoginAdmin();  // 記住過密碼就自動登入
     }
   }
   tabButtons.forEach(btn=>{
@@ -582,7 +582,45 @@
     const r = await postToBackend(payload);
     const body = r.body || {};
 
-    if(!r.ok || body.result !== 'success'){
+    if(!r.ok){
+      // 連線層失敗（沒收到後端的成功回應）。但報名很可能其實已經寫進去了 ——
+      // 後端成功、只是回應在半路掉了。直接叫使用者「再試一次」正是重覆送出的來源。
+      // 所以先用電話查一下：真的有就當成功、帶去查詢頁，避免他以為失敗又送一次。
+      if(!editingGroup && payload.phone){
+        // 查證最多等 7 秒就放棄 —— 不然連線本來就不好時，這個查證會再跑一整輪
+        // (GET→JSONP→POST)，讓使用者等第二輪，反而更卡。問不到就直接給下面的提示。
+        let check = null;
+        try{ check = await withTimeout(postToBackend({ type:'lookup', phone: payload.phone }), 7000); }
+        catch(e){ check = null; }
+        if(check && check.ok && check.body && check.body.found){
+          showToast(T({
+            zh:'✅ 你其實已經報名成功了，不用再送一次',
+            en:'✅ You are already registered — no need to submit again.',
+            ja:'✅ すでにお申込みは完了しています。再送信は不要です。',
+            ko:'✅ 이미 신청이 완료되었습니다. 다시 보내지 않으셔도 됩니다.' }));
+          document.getElementById('lk-query').value = payload.phone;
+          await doLookup(payload.phone);
+          switchToLookupTab();
+          signupForm.reset();
+          mainCountryPicker.set('');
+          guestRowsContainer.innerHTML = '';
+          guestCount = 0;
+          updateGuestHint();
+          restoreBtn();
+          return;
+        }
+      }
+      // 查不到（或在編輯模式）才是真的沒成功。訊息也改成引導查詢，而不是催他重送。
+      showError(T({
+        zh:'連線不穩定。若你剛才是在報名，請先到「查詢報名」頁用電話查一下 —— 很可能已經成功了，先別急著重送。',
+        en:'Unstable connection. If you were registering, please check the "Look up" tab with your phone number first — it may already have gone through. Avoid resubmitting.',
+        ja:'接続が不安定です。お申込み中だった場合は、まず「照会」タブで電話番号を確認してください。すでに完了している可能性があります。すぐに再送信しないでください。',
+        ko:'연결이 불안정합니다. 신청 중이었다면 먼저 "조회" 탭에서 전화번호로 확인해 주세요. 이미 완료되었을 수 있습니다. 바로 다시 보내지 마세요.' }), 12000);
+      restoreBtn();
+      return;
+    }
+
+    if(body.result !== 'success'){
       showError(body.message || T({
         zh:'連線失敗，請確認網路後再試一次',
         en:'Could not reach the server — please check your connection and try again.',
@@ -1464,15 +1502,16 @@
 
   let __adminAutoTried = false;
   function maybeAutoLoginAdmin(){
-    if(__adminAutoTried || adminPassword) return;          // 已試過或已登入就不做
+    if(__adminAutoTried || adminPassword) return false;    // 已試過或已登入就不做
     const gate = document.getElementById('admin-gate');
-    if(!gate || gate.style.display === 'none') return;     // 已經在後台裡
+    if(!gate || gate.style.display === 'none') return false;// 已經在後台裡
     const saved = loadAdminCred();
-    if(!saved) return;
+    if(!saved) return false;
     __adminAutoTried = true;
     const input = document.getElementById('admin-pw');
     if(input) input.value = saved;
     tryUnlockAdmin();                                       // 自動送出（密碼變了會自動清掉重來）
+    return true;                                            // 已經發出登入請求，外面就別再多發預熱
   }
 
   async function tryUnlockAdmin(){
@@ -1800,11 +1839,15 @@
         + '</div>';
     }).join('');
 
-    const payHtml = (g.payments || []).length
-      ? g.payments.map(p=> '<div class="pay-line"><b>' + escapeHtml(p.date || '—') + '</b>'
-          + '<span>NT$' + Number(p.amount||0).toLocaleString() + '</span>'
-          + '<span>' + L('後五碼','Last 5') + ' ' + escapeHtml(p.last5 || '—') + '</span></div>').join('')
-      : '<div class="adm-sub" style="padding:0;">' + L('尚無匯款回報','No transfer reported yet') + '</div>';
+    // 匯款回報：精簡成一行式（重用摘要列 adm-sub 的樣式，會自動換行、不占大空間）
+    const payHtml = '<div class="adm-sub" style="padding:0 0 8px;">'
+      + '<span style="opacity:.7;">' + L('匯款回報','Reported') + '：</span>'
+      + ((g.payments || []).length
+          ? g.payments.map(p=> '<span><b>' + escapeHtml(p.date || '—') + '</b> NT$'
+              + Number(p.amount||0).toLocaleString() + ' · ' + L('後五碼','L5') + ' '
+              + escapeHtml(p.last5 || '—') + '</span>').join('')
+          : '<span>' + L('尚無回報','None yet') + '</span>')
+      + '</div>';
 
     const CUR_CLS = {
       [PS.NONE]:'cur-none', [PS.CHECKING]:'cur-checking',
@@ -1866,11 +1909,11 @@
           + (g.seatNo ? '<span>' + L('桌次','Table') + ' <b>' + escapeHtml(String(g.seatNo)) + '</b></span>' : '')
           + (g.editCount ? '<span>' + L('已修改','Edited') + ' ' + g.editCount + ' ' + L('次','times') + '</span>' : '')
         + '</div>'
-        // 款項狀態的四個按鈕直接接在摘要列下面，不另外下標題 ——
-        // 按鈕本身已經標示目前狀態（● 那個），標題是多餘的。
+        // 匯款回報放在狀態按鈕正上方，方便對照「收到多少」再按狀態
+        + payHtml
+        // 款項狀態四個按鈕，緊接在匯款回報下面
         + '<div class="adm-actions adm-pay-row">' + statusBtns + '</div>'
         + '<div class="adm-sec"><h5>' + L('成員','Members') + '</h5>' + memHtml + '</div>'
-        + '<div class="adm-sec"><h5>' + L('匯款回報','Transfer reports') + '</h5>' + payHtml + '</div>'
         + '<div class="adm-sec"><h5>' + L('其他資料','Details') + '</h5><dl class="kv">'
           + '<dt>IG</dt><dd>' + escapeHtml(g.ig || '—') + '</dd>'
           + '<dt>' + L('併桌對象','Join table') + '</dt><dd>' + escapeHtml(g.tableWith || '—') + '</dd>'
