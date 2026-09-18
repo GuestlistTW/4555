@@ -1815,28 +1815,26 @@
         + (on ? '● ' : '') + (isEn() ? PS_META[st].en : st) + '</button>';
     }).join('');
 
-    // ── 帳款確認中：標題列的金額配色 + 末五碼 + 可點的「確認收款」鈕（①②③⑤）──
-    const isChecking = (g.payStatus === PS.CHECKING);
+    // ── 只在篩選「帳款確認中」時：卡片分兩塊 = 左邊資訊(點展開) / 右邊一顆小按鈕(點確認收款) ──
+    const checkingView = (adminFilter === 'checking');
     const dueNum = Number(g.due || 0);
     const repNum = Number(g.reportedSum || 0);
-    const amtMatch = (dueNum > 0 && repNum === dueNum);          // ① 應付=已回報 → 綠，否則紅
+    const amtMatch = (dueNum > 0 && repNum === dueNum);            // ① 應付=已回報→綠，否則紅
     const lastPay = (g.payments && g.payments.length) ? g.payments[g.payments.length - 1] : null;
-    const last5 = lastPay ? (lastPay.last5 || '') : '';           // ② 取最後一次回報的末五碼
+    const last5 = lastPay ? (lastPay.last5 || '') : '';            // ② 最後一次回報的末五碼
 
-    const headAmount = isChecking
-      ? '<span class="adm-head-amount">'
-          + (last5 ? '<span style="color:#e6b800;font-weight:700;">' + escapeHtml(last5) + '</span> ' : '')
-          + '<span style="color:' + (amtMatch ? '#2e9e5b' : '#e5484d') + ';font-weight:700;">NT$' + dueNum.toLocaleString() + '</span>'
-        + '</span>'
-      : '<span class="adm-head-amount">NT$' + dueNum.toLocaleString() + '</span>';
+    // 金額顯示：末五碼(黃) + 金額(綠/紅)，字級小一點。
+    const amountColored = '<span class="adm-head-amount" style="font-size:.85em;">'
+      + (last5 ? '<span style="color:#e6b800;font-weight:700;">' + escapeHtml(last5) + '</span> ' : '')
+      + '<span style="color:' + (amtMatch ? '#2e9e5b' : '#e5484d') + ';font-weight:700;">NT$' + dueNum.toLocaleString() + '</span>'
+      + '</span>';
 
-    // ③⑤ 帳款確認中 → 做成按鈕，點了跳確認、確認後改「已收款」(= 按已收款鈕)；
-    // 它有 confirm-paid-btn 這個 class，點擊處理會先攔下、不連帶展開卡片。
-    const headStatus = isChecking
-      ? '<button class="st-badge ' + meta.cls + ' confirm-paid-btn" data-act="pay" data-status="' + PS.DONE + '"'
-          + ' style="cursor:pointer;border:none;font:inherit;" title="' + L('點一下：確認收款','Click to mark as paid') + '">'
-          + psText(g) + ' ✔</button>'
-      : '<span class="st-badge ' + meta.cls + '">' + psText(g) + '</span>';
+    // 右邊那顆小按鈕：點了跳確認 → 改「已收款」(③)。有 confirm-paid-btn 這個 class，
+    // 點擊處理會先攔下、不連帶把卡片展開(⑤)。
+    const confirmBtn = '<button class="confirm-paid-btn" data-act="pay" data-status="' + PS.DONE + '"'
+      + ' style="cursor:pointer;border:none;border-radius:6px;padding:3px 10px;font-size:12px;'
+      + 'font-weight:600;background:#2e9e5b;color:#fff;white-space:nowrap;flex:none;">'
+      + L('確認收款','Mark paid') + '</button>';
 
     const f = (label, key, val)=>
       '<div><label>' + label + '</label><input data-edit="' + key + '" value="' + escapeHtml(val || '') + '"></div>';
@@ -1868,16 +1866,31 @@
       + '<button class="mini-btn" data-act="close-edit">' + L('取消','Discard') + '</button></div>'
       + '</div>';
 
+    const headHtml = checkingView
+      // 篩選「帳款確認中」：左邊資訊(點展開) + 右邊小按鈕(點確認收款)，不放展開箭頭
+      ? '<div class="adm-head">'
+          + '<div class="adm-head-info" style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">'
+            + '<span class="adm-name">' + (g.country ? flagOf(g.country) : '') + ' ' + escapeHtml(g.name) + '</span>'
+            + (extra ? '<span class="adm-plus">+' + extra + '</span>' : '')
+            + '<span class="adm-spacer"></span>'
+            + (req ? '<span class="adm-req">⚠ ' + req + '</span>' : '')
+            + amountColored
+          + '</div>'
+          + confirmBtn
+        + '</div>'
+      // 其他篩選：維持原本的樣子（名稱、金額、狀態徽章、展開箭頭）
+      : '<div class="adm-head">'
+          + '<span class="adm-name">' + (g.country ? flagOf(g.country) : '') + ' ' + escapeHtml(g.name) + '</span>'
+          + (extra ? '<span class="adm-plus">+' + extra + '</span>' : '')
+          + '<span class="adm-spacer"></span>'
+          + (req ? '<span class="adm-req">⚠ ' + req + '</span>' : '')
+          + '<span class="adm-head-amount">NT$' + Number(g.due||0).toLocaleString() + '</span>'
+          + '<span class="st-badge ' + meta.cls + '">' + psText(g) + '</span>'
+          + '<span class="adm-caret">▶</span>'
+        + '</div>';
+
     return '<div class="adm-card' + (g.allCancelled?' is-void':'') + (req?' has-req':'') + '" data-id="' + escapeHtml(g.regId) + '">'
-      + '<div class="adm-head">'
-        + '<span class="adm-name">' + (g.country ? flagOf(g.country) : '') + ' ' + escapeHtml(g.name) + '</span>'
-        + (extra ? '<span class="adm-plus">+' + extra + '</span>' : '')
-        + '<span class="adm-spacer"></span>'
-        + (req ? '<span class="adm-req">⚠ ' + req + '</span>' : '')
-        + headAmount
-        + headStatus
-        + '<span class="adm-caret">▶</span>'
-      + '</div>'
+      + headHtml
       + '<div class="adm-detail">'
         + '<div class="adm-sub" style="padding:0 0 12px;">'
           + '<span>' + L('應付','Due') + ' <b>NT$' + Number(g.due||0).toLocaleString() + '</b></span>'
