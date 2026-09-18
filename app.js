@@ -1815,6 +1815,29 @@
         + (on ? '● ' : '') + (isEn() ? PS_META[st].en : st) + '</button>';
     }).join('');
 
+    // ── 帳款確認中：標題列的金額配色 + 末五碼 + 可點的「確認收款」鈕（①②③⑤）──
+    const isChecking = (g.payStatus === PS.CHECKING);
+    const dueNum = Number(g.due || 0);
+    const repNum = Number(g.reportedSum || 0);
+    const amtMatch = (dueNum > 0 && repNum === dueNum);          // ① 應付=已回報 → 綠，否則紅
+    const lastPay = (g.payments && g.payments.length) ? g.payments[g.payments.length - 1] : null;
+    const last5 = lastPay ? (lastPay.last5 || '') : '';           // ② 取最後一次回報的末五碼
+
+    const headAmount = isChecking
+      ? '<span class="adm-head-amount">'
+          + (last5 ? '<span style="color:#e6b800;font-weight:700;">' + escapeHtml(last5) + '</span> ' : '')
+          + '<span style="color:' + (amtMatch ? '#2e9e5b' : '#e5484d') + ';font-weight:700;">NT$' + dueNum.toLocaleString() + '</span>'
+        + '</span>'
+      : '<span class="adm-head-amount">NT$' + dueNum.toLocaleString() + '</span>';
+
+    // ③⑤ 帳款確認中 → 做成按鈕，點了跳確認、確認後改「已收款」(= 按已收款鈕)；
+    // 它有 confirm-paid-btn 這個 class，點擊處理會先攔下、不連帶展開卡片。
+    const headStatus = isChecking
+      ? '<button class="st-badge ' + meta.cls + ' confirm-paid-btn" data-act="pay" data-status="' + PS.DONE + '"'
+          + ' style="cursor:pointer;border:none;font:inherit;" title="' + L('點一下：確認收款','Click to mark as paid') + '">'
+          + psText(g) + ' ✔</button>'
+      : '<span class="st-badge ' + meta.cls + '">' + psText(g) + '</span>';
+
     const f = (label, key, val)=>
       '<div><label>' + label + '</label><input data-edit="' + key + '" value="' + escapeHtml(val || '') + '"></div>';
     const memEdit = members.map(m=>
@@ -1851,8 +1874,8 @@
         + (extra ? '<span class="adm-plus">+' + extra + '</span>' : '')
         + '<span class="adm-spacer"></span>'
         + (req ? '<span class="adm-req">⚠ ' + req + '</span>' : '')
-        + '<span class="adm-head-amount">NT$' + Number(g.due||0).toLocaleString() + '</span>'
-        + '<span class="st-badge ' + meta.cls + '">' + psText(g) + '</span>'
+        + headAmount
+        + headStatus
         + '<span class="adm-caret">▶</span>'
       + '</div>'
       + '<div class="adm-detail">'
@@ -1905,7 +1928,9 @@
     if(!card) return;
     const regId = card.dataset.id;
 
-    if(e.target.closest('.adm-head')){
+    // 標題列上的「確認收款」鈕：點它只做動作，不要連帶把卡片展開（⑤）。
+    // 排除掉它之後，其餘點標題列的地方照舊展開。
+    if(e.target.closest('.adm-head') && !e.target.closest('.confirm-paid-btn')){
       card.classList.toggle('is-open');
       return;
     }
@@ -1913,7 +1938,8 @@
     const memLeft = e.target.closest('.mem-left');
     if(memLeft){ memLeft.closest('.mem-row').classList.toggle('is-expanded'); return; }
 
-    const btn = e.target.closest('.mini-btn');
+    // 用 [data-act] 抓，涵蓋一般 mini-btn 與標題列的確認收款鈕（data-act="pay"）。
+    const btn = e.target.closest('[data-act]');
     if(!btn) return;
     const act = btn.dataset.act;
 
