@@ -386,13 +386,12 @@
   document.getElementById('line-modal-ok').addEventListener('click', closeLineModal);
 
   // ---- Backend Communication ----
-  // 兩段逾時是串接的（POST 失敗才換 JSONP），所以使用者最久要等
-  // POST_TIMEOUT + JSONP_TIMEOUT。
-  // POST 原本設 8 秒，但 GAS 冷啟動（一陣子沒人用、要重新喚醒）本來就常常
-  // 要 10~15 秒，8 秒等於把「其實會成功、只是剛喚醒比較慢」的回應提早掐斷，
-  // 使用者就看到逾時。放寬到 15 秒讓冷啟動那一筆有時間回來。
-  // 補了 doPost 後 POST 是主要路徑，正常（熱機）時 1~2 秒就回，不會真的等到 15 秒；
-  // 只有冷啟動才會用到這段餘裕。加上冪等鍵，就算真的重送也不會重覆寫入。
+  // 逾時分開設，因為現在 GET 是小請求（登入、查詢）的主要路徑：
+  //   GET  給足時間撐過冷啟動（GAS 一陣子沒人用要重新喚醒，本來就要 10~15 秒），
+  //        一條路就把結果拿回來，不用像以前那樣三條路各等一輪湊成 30 秒。
+  //   POST 只在「網址塞不下的大請求」或最後保險時才用，給它一樣的餘裕。
+  //   JSONP 是最終保險。
+  const GET_TIMEOUT   = 18000;
   const POST_TIMEOUT  = 15000;
   const JSONP_TIMEOUT = 20000;
   const REQUEST_TIMEOUT = JSONP_TIMEOUT;   // 沿用舊名稱，jsonpRequest 仍在用
@@ -457,80 +456,60 @@
       payload._rid = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
     }
 
-    // AbortController：逾時後真的把請求中斷。
-    // 少了這個，逾時的 fetch 會繼續在背景跑並佔著後端執行資源，
-    // 等於接下來的 JSONP 要跟自己前一個沒死透的請求搶資源。
-    let postSnippet = '';
-    const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-    const killer = ctrl ? setTimeout(()=>{ try{ ctrl.abort(); }catch(e){} }, POST_TIMEOUT) : null;
-    try{
-      const res = await withTimeout(fetch(GAS_URL, {
-        method:'POST',
-        headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-        body: JSON.stringify(payload),
-        // credentials:'omit' → 明確不帶 Google cookie。
-        // 帶了的話，登入多個 Google 帳號時 Google 會把請求導向 /u/<n>/，
-        // 而那個帳號多半沒有這個腳本的存取權，於是回傳沒有 CORS 標頭的錯誤頁。
-        // 這就是「同一台電腦昨天好好的、今天突然連不上」的原因 ——
-        // /u/ 後面的編號會隨帳號登入順序改變，跟程式無關。
-        credentials:'omit',
-        signal: ctrl ? ctrl.signal : undefined
-      }), POST_TIMEOUT);
-      const raw = await res.text();
-      // 回應不是 JSON（多半是 Google 的錯誤頁或導向頁）時，不能就此放棄 ——
-      // GAS 的 POST 本來就常常這樣，JSONP 備援存在的目的正是為了接手。
-      // 這裡只把內容記到主控台供診斷，然後照常往下走 JSONP。
+    const reqBody = JSON.stringify(payload);
+    const urlGet = GAS_URL + '?p=' + encodeURIComponent(reqBody) + '&_=' + Date.now();
+    const canUseUrl = urlGet.length <= 7500;
+    let snippet = '';
+    let sawTimeout = false;
+
+    // 單一條路：逾時真的中斷連線，回應能解析成 JSON 才算成功，否則回 null 換下一條。
+    async function fetchLeg(kind, url, opts, ms){
+      const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      const killer = ctrl ? setTimeout(()=>{ sawTimeout = true; try{ ctrl.abort(); }catch(e){} }, ms) : null;
       try{
-        const body = JSON.parse(raw);
-        return { ok:true, via:'post', status:res.status, body:body };
-      }catch(parseErr){
-        postSnippet = String(raw).slice(0, 300);
-        console.warn('POST 回應不是 JSON，改走 JSONP。前 300 字：', postSnippet);
-      }
-    }catch(err){
-      console.warn('POST 失敗，改走 JSONP：', err);
-    }finally{
-      if(killer) clearTimeout(killer);
-    }
-
-    // ── 第二條路：GET + 不帶 cookie ──
-    // JSONP 是用 <script> 標籤載入的，而 script 標籤一定會帶上 cookie，
-    // 沒辦法關掉，所以多帳號時它一樣會被導向 /u/<n>/ 而失敗。
-    // 這裡改用 fetch 發 GET：可以明確 credentials:'omit'，Google 就當成匿名請求，
-    // 不做帳號導向。GET 又屬於簡單請求，不會觸發 CORS 預檢。
-    try{
-      const q = GAS_URL + '?p=' + encodeURIComponent(JSON.stringify(payload)) + '&_=' + Date.now();
-      if(q.length <= 7500){
-        const res2 = await withTimeout(fetch(q, {
-          method:'GET',
-          credentials:'omit',
-          redirect:'follow'
-        }), POST_TIMEOUT);
-        const raw2 = await res2.text();
+        const res = await withTimeout(fetch(url, Object.assign({ signal: ctrl ? ctrl.signal : undefined }, opts)), ms);
+        const raw = await res.text();
         try{
-          const body2 = JSON.parse(raw2);
-          return { ok:true, via:'get', status:res2.status, body:body2 };
-        }catch(pe2){
-          if(!postSnippet) postSnippet = String(raw2).slice(0, 300);
-          console.warn('GET 回應不是 JSON，改走 JSONP。前 300 字：', String(raw2).slice(0, 300));
+          return { ok:true, via:kind, status:res.status, body: JSON.parse(raw) };
+        }catch(pe){
+          if(!snippet) snippet = String(raw).slice(0, 300);
+          console.warn(kind.toUpperCase() + ' 回應不是 JSON，換下一條。前 300 字：', String(raw).slice(0, 300));
         }
+      }catch(err){
+        if(/timeout|abort/i.test(String(err && err.message ? err.message : err))) sawTimeout = true;
+        console.warn(kind.toUpperCase() + ' 失敗，換下一條：', err);
+      }finally{
+        if(killer) clearTimeout(killer);
       }
-    }catch(errGet){
-      console.warn('GET 失敗，改走 JSONP：', errGet);
+      return null;
     }
 
-    try{
-      const body = await jsonpRequest(payload);
-      return { ok:true, via:'jsonp', body:body };
-    }catch(err2){
-      console.error('JSONP 也失敗：', err2);
-      const msg = String(err2 && err2.message ? err2.message : err2);
-      let reason = /timeout/i.test(msg) ? 'timeout' : 'network';
-      // 兩條路都失敗，而且 POST 當時收到的是網頁 —— 那就是後端部署有問題，
-      // 不是使用者的網路或瀏覽器問題，訊息要講對方向。
-      if(postSnippet && reason !== 'timeout') reason = 'bad-response';
-      return { ok:false, reason:reason, error:msg, snippet:postSnippet };
+    // credentials:'omit' → 當成匿名請求。多帳號登入時 Google 才不會把請求導向
+    // /u/<n>/（那個帳號多半沒有這支腳本的存取權，會回沒有 CORS 標頭的錯誤頁）。
+    const getLeg = ()=> fetchLeg('get', urlGet,
+      { method:'GET', credentials:'omit', redirect:'follow' }, GET_TIMEOUT);
+    const postLeg = ()=> fetchLeg('post', GAS_URL,
+      { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: reqBody, credentials:'omit' }, POST_TIMEOUT);
+    async function jsonpLeg(){
+      try{ return { ok:true, via:'jsonp', body: await jsonpRequest(payload) }; }
+      catch(e){ if(/timeout/i.test(String(e && e.message))) sawTimeout = true; console.warn('JSONP 失敗：', e); return null; }
     }
+
+    // ── 傳輸順序（這是這次真正解掉「登入卡 30 秒」的地方）──
+    // 小請求（登入、查詢…網址塞得下）先走 GET：它用 credentials:'omit' 當匿名請求，
+    //   是 GAS 跨網域最穩、最快的路，而且能給它足夠時間撐過冷啟動、一條就拿到結果。
+    //   POST 因為 script.google → googleusercontent 的轉址常常讀不到回應，改放最後
+    //   當保險 —— 之前把 POST 放第一條又給 15 秒，才會冷啟動時白等一輪又一輪湊成 30 秒。
+    // 大請求（攜伴很多、網址超過 7500 字）只有 POST 扛得動，GET／JSONP 都有長度上限。
+    const legs = canUseUrl ? [getLeg, jsonpLeg, postLeg] : [postLeg];
+    for(let i = 0; i < legs.length; i++){
+      const r = await legs[i]();
+      if(r) return r;
+    }
+
+    // 全部失敗：有收到網頁 = 部署／權限問題；沒收到而是等太久 = 逾時（多半冷啟動）。
+    const reason = snippet ? 'bad-response' : (sawTimeout ? 'timeout' : 'network');
+    return { ok:false, reason:reason, snippet:snippet };
   }
 
   // ---- Form Submission ----
