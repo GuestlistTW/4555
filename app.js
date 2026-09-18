@@ -1482,10 +1482,10 @@
     btn.textContent = isEn() ? 'Signing in…' : '登入中…';
     errEl.style.display = 'none';
 
-    // 只驗密碼（adminLogin 不讀表，很快）。密碼對了就先進後台，
-    // 名單另外用 loadAdminList() 讀 —— 這樣「進得去」只等密碼驗證，
-    // 不會被讀整張表卡在門外。
-    const r = await postToBackend({ type:'adminLogin', password: pw });
+    // 驗密碼 + 讀名單「一次往返」完成（adminBootstrap）。
+    // 名單已清乾淨、日期函式也加速了，讀名單很快，所以合併成一趟最省 ——
+    // 跟你另一個「一個請求」的快網站同一個結構，比拆兩趟少一次來回。
+    const r = await postToBackend({ type:'adminBootstrap', password: pw });
     const body = r.body || {};
 
     btn.disabled = false;
@@ -1521,7 +1521,10 @@
           ? 'The backend does not recognise this request — please deploy the updated Apps Script as a NEW VERSION.'
           : '後端不認得這個請求，代表 Apps Script 還是舊版。請到「部署 → 管理部署作業 → 鉛筆 → 版本選『新版本』→ 部署」';
       } else {
-        clearAdminCred();   // 記住的密碼已失效（改過了），清掉讓使用者重打
+        // 只有「明確密碼錯」才清掉記住的密碼。逾時/網路波動走的是上面 !r.ok，
+        // 不會到這裡；但保險起見這裡也只在 wrong-password/no-password 才清，
+        // 免得偶發狀況把好好的記住密碼洗掉。
+        if(body.reason === 'wrong-password' || body.reason === 'no-password') clearAdminCred();
         errEl.textContent = body.reason === 'not-configured'
           ? (body.message || '後台密碼尚未設定')
           : (em || (isEn() ? 'Incorrect password — please try again' : '密碼錯誤，請再試一次'));
