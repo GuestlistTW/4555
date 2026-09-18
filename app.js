@@ -203,6 +203,10 @@
   function setTab(name){
     tabButtons.forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
     panels.forEach(p=>p.classList.toggle('active', p.id==='panel-'+name));
+    if(name === 'admin'){
+      warmUpBackend();        // 先偷偷喚醒後端，降低登入時的冷啟動等待
+      maybeAutoLoginAdmin();  // 這台裝置記住過密碼的話，自動帶入並登入
+    }
   }
   tabButtons.forEach(btn=>{
     btn.addEventListener('click', ()=> setTab(btn.dataset.tab));
@@ -383,10 +387,13 @@
 
   // ---- Backend Communication ----
   // 兩段逾時是串接的（POST 失敗才換 JSONP），所以使用者最久要等
-  // POST_TIMEOUT + JSONP_TIMEOUT。原本兩段都設 25 秒 = 最長要等 50 秒才看到錯誤訊息。
-  // POST 這段縮短：它在正常網路下 2 秒內就會回來，等到 25 秒幾乎必定是被擋掉了，
-  // 早點放棄改走 JSONP 反而更快拿到資料。
-  const POST_TIMEOUT  = 8000;
+  // POST_TIMEOUT + JSONP_TIMEOUT。
+  // POST 原本設 8 秒，但 GAS 冷啟動（一陣子沒人用、要重新喚醒）本來就常常
+  // 要 10~15 秒，8 秒等於把「其實會成功、只是剛喚醒比較慢」的回應提早掐斷，
+  // 使用者就看到逾時。放寬到 15 秒讓冷啟動那一筆有時間回來。
+  // 補了 doPost 後 POST 是主要路徑，正常（熱機）時 1~2 秒就回，不會真的等到 15 秒；
+  // 只有冷啟動才會用到這段餘裕。加上冪等鍵，就算真的重送也不會重覆寫入。
+  const POST_TIMEOUT  = 15000;
   const JSONP_TIMEOUT = 20000;
   const REQUEST_TIMEOUT = JSONP_TIMEOUT;   // 沿用舊名稱，jsonpRequest 仍在用
 
@@ -1455,6 +1462,40 @@
   let adminFilter = 'all';
   let adminView = 'list';
 
+  // ── 保溫（warm-up）──
+  // 一切到後台分頁就先偷偷發一個很輕的請求把後端喚醒，等使用者把密碼打完，
+  // 執行個體多半已經熱好，登入就不會再撞到冷啟動。射後不理、不看結果。
+  // adminLogin 不帶密碼：後端只回「請輸入密碼」，不讀試算表，是最便宜的喚醒方式。
+  let __lastWarm = 0;
+  function warmUpBackend(){
+    const now = Date.now();
+    if(now - __lastWarm < 60000) return;   // 最多每分鐘一次，避免重複打
+    __lastWarm = now;
+    try{ postToBackend({ type:'adminLogin' }); }catch(e){}
+  }
+
+  // ── 記住登入 ──
+  // 成功登入後，把密碼存在「這台裝置的瀏覽器」裡，下次自動帶入、自動登入。
+  // 這是綁在已驗證過的裝置上，跟「把密碼寫死在 HTML 給所有人下載」完全不同：
+  // 別人拿不到這台裝置的 localStorage。私密模式或被停用時，try/catch 會安靜略過。
+  const ADMIN_CRED_KEY = 'tp_admin_cred_v1';
+  function saveAdminCred(pw){ try{ localStorage.setItem(ADMIN_CRED_KEY, pw); }catch(e){} }
+  function loadAdminCred(){ try{ return localStorage.getItem(ADMIN_CRED_KEY) || ''; }catch(e){ return ''; } }
+  function clearAdminCred(){ try{ localStorage.removeItem(ADMIN_CRED_KEY); }catch(e){} }
+
+  let __adminAutoTried = false;
+  function maybeAutoLoginAdmin(){
+    if(__adminAutoTried || adminPassword) return;          // 已試過或已登入就不做
+    const gate = document.getElementById('admin-gate');
+    if(!gate || gate.style.display === 'none') return;     // 已經在後台裡
+    const saved = loadAdminCred();
+    if(!saved) return;
+    __adminAutoTried = true;
+    const input = document.getElementById('admin-pw');
+    if(input) input.value = saved;
+    tryUnlockAdmin();                                       // 自動送出（密碼變了會自動清掉重來）
+  }
+
   async function tryUnlockAdmin(){
     const input = document.getElementById('admin-pw');
     const errEl = document.getElementById('admin-gate-error');
@@ -1510,6 +1551,7 @@
           ? 'The backend does not recognise this request — please deploy the updated Apps Script as a NEW VERSION.'
           : '後端不認得這個請求，代表 Apps Script 還是舊版。請到「部署 → 管理部署作業 → 鉛筆 → 版本選『新版本』→ 部署」';
       } else {
+        clearAdminCred();   // 記住的密碼已失效（改過了），清掉讓使用者重打
         errEl.textContent = body.reason === 'not-configured'
           ? (body.message || '後台密碼尚未設定')
           : (em || (isEn() ? 'Incorrect password — please try again' : '密碼錯誤，請再試一次'));
@@ -1522,6 +1564,7 @@
     adminPassword = pw;
     adminOperator = body.operator || '';
     input.value = '';
+    saveAdminCred(pw);   // 記住這台裝置，下次自動登入
 
     // 密碼對了 → 立刻進後台。名單改成進來之後才讀：
     // 讀表慢（或冷啟動）時，人已經在後台看著「載入中」，而不是卡在登入頁外面。
