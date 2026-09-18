@@ -386,13 +386,9 @@
   document.getElementById('line-modal-ok').addEventListener('click', closeLineModal);
 
   // ---- Backend Communication ----
-  // 逾時分開設，因為現在 GET 是小請求（登入、查詢）的主要路徑：
-  //   GET  給足時間撐過冷啟動（GAS 一陣子沒人用要重新喚醒，本來就要 10~15 秒），
-  //        一條路就把結果拿回來，不用像以前那樣三條路各等一輪湊成 30 秒。
-  //   POST 只在「網址塞不下的大請求」或最後保險時才用，給它一樣的餘裕。
-  //   JSONP 是最終保險。
-  const GET_TIMEOUT   = 18000;
-  const POST_TIMEOUT  = 15000;
+  // 現在只走一個 POST（對照那個很快的網站），所以只需要一個寬鬆逾時當安全網：
+  // 正常 1~2 秒就回，萬一冷啟動慢也給到 20 秒，超過才收尾顯示錯誤。
+  const POST_TIMEOUT  = 20000;
   const JSONP_TIMEOUT = 20000;
   const REQUEST_TIMEOUT = JSONP_TIMEOUT;   // 沿用舊名稱，jsonpRequest 仍在用
 
@@ -445,71 +441,29 @@
   async function postToBackend(payload){
     if(!GAS_URL) return { ok:false, reason:'no-url' };
 
-    // ── 冪等鍵（idempotency key）──
-    // 一次「送出」在底下會嘗試三條路：POST → GET → JSONP。只要第一條在後端已經
-    // 寫進去、但回應逾時或不是 JSON，就會往下再送一次 —— 攜伴人多、寫入較慢時
-    // 特別容易發生，於是同一筆報名被寫兩次（本人那組已存在→第二次走「修改」把攜伴
-    // 又補一遍，看起來就是攜伴重覆）。
-    // 這裡讓同一次送出的三條路共用同一個 _rid，後端看到重覆的 _rid 就直接回傳
-    // 第一次的結果、不再寫入。這樣不管逾時或備援，都只會成立一筆。
+    // 冪等鍵：萬一同一筆因逾時被送了兩次，後端用同一個 _rid 只認第一次、不重覆寫入。
     if(payload && typeof payload === 'object' && !payload._rid){
       payload._rid = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
     }
 
-    const reqBody = JSON.stringify(payload);
-    const urlGet = GAS_URL + '?p=' + encodeURIComponent(reqBody) + '&_=' + Date.now();
-    const canUseUrl = urlGet.length <= 7500;
-    let snippet = '';
-    let sawTimeout = false;
-
-    // 單一條路：逾時真的中斷連線，回應能解析成 JSON 才算成功，否則回 null 換下一條。
-    async function fetchLeg(kind, url, opts, ms){
-      const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-      const killer = ctrl ? setTimeout(()=>{ sawTimeout = true; try{ ctrl.abort(); }catch(e){} }, ms) : null;
-      try{
-        const res = await withTimeout(fetch(url, Object.assign({ signal: ctrl ? ctrl.signal : undefined }, opts)), ms);
-        const raw = await res.text();
-        try{
-          return { ok:true, via:kind, status:res.status, body: JSON.parse(raw) };
-        }catch(pe){
-          if(!snippet) snippet = String(raw).slice(0, 300);
-          console.warn(kind.toUpperCase() + ' 回應不是 JSON，換下一條。前 300 字：', String(raw).slice(0, 300));
-        }
-      }catch(err){
-        if(/timeout|abort/i.test(String(err && err.message ? err.message : err))) sawTimeout = true;
-        console.warn(kind.toUpperCase() + ' 失敗，換下一條：', err);
-      }finally{
-        if(killer) clearTimeout(killer);
-      }
-      return null;
+    // ── 就跟另一個「很快」的網站一模一樣：單純一個 POST，直接讀 JSON。──
+    // 之前那套「GET→JSONP→POST 三層備援 + 18 秒逾時」才是登入/讀取慢的元兇。
+    // 對照組證明：在這個環境，單純 POST 到 GAS 就能又快又穩地拿到回應，不需要備援。
+    // 只保留一個寬鬆逾時（20 秒）當安全網 —— 萬一真的卡住才收尾顯示錯誤，
+    // 正常情況 1~2 秒就回來，完全不受影響。
+    try{
+      const res = await withTimeout(fetch(GAS_URL, {
+        method:'POST',
+        body: JSON.stringify(payload)
+      }), POST_TIMEOUT);
+      const body = await res.json();
+      return { ok:true, via:'post', status:res.status, body:body };
+    }catch(err){
+      const msg = String(err && err.message ? err.message : err);
+      const reason = /timeout|abort/i.test(msg) ? 'timeout' : 'network';
+      console.warn('POST 失敗：', err);
+      return { ok:false, reason:reason, error:msg };
     }
-
-    // credentials:'omit' → 當成匿名請求。多帳號登入時 Google 才不會把請求導向
-    // /u/<n>/（那個帳號多半沒有這支腳本的存取權，會回沒有 CORS 標頭的錯誤頁）。
-    const getLeg = ()=> fetchLeg('get', urlGet,
-      { method:'GET', credentials:'omit', redirect:'follow' }, GET_TIMEOUT);
-    const postLeg = ()=> fetchLeg('post', GAS_URL,
-      { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: reqBody, credentials:'omit' }, POST_TIMEOUT);
-    async function jsonpLeg(){
-      try{ return { ok:true, via:'jsonp', body: await jsonpRequest(payload) }; }
-      catch(e){ if(/timeout/i.test(String(e && e.message))) sawTimeout = true; console.warn('JSONP 失敗：', e); return null; }
-    }
-
-    // ── 傳輸順序（這是這次真正解掉「登入卡 30 秒」的地方）──
-    // 小請求（登入、查詢…網址塞得下）先走 GET：它用 credentials:'omit' 當匿名請求，
-    //   是 GAS 跨網域最穩、最快的路，而且能給它足夠時間撐過冷啟動、一條就拿到結果。
-    //   POST 因為 script.google → googleusercontent 的轉址常常讀不到回應，改放最後
-    //   當保險 —— 之前把 POST 放第一條又給 15 秒，才會冷啟動時白等一輪又一輪湊成 30 秒。
-    // 大請求（攜伴很多、網址超過 7500 字）只有 POST 扛得動，GET／JSONP 都有長度上限。
-    const legs = canUseUrl ? [getLeg, jsonpLeg, postLeg] : [postLeg];
-    for(let i = 0; i < legs.length; i++){
-      const r = await legs[i]();
-      if(r) return r;
-    }
-
-    // 全部失敗：有收到網頁 = 部署／權限問題；沒收到而是等太久 = 逾時（多半冷啟動）。
-    const reason = snippet ? 'bad-response' : (sawTimeout ? 'timeout' : 'network');
-    return { ok:false, reason:reason, snippet:snippet };
   }
 
   // ---- Form Submission ----
