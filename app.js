@@ -204,8 +204,10 @@
     tabButtons.forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
     panels.forEach(p=>p.classList.toggle('active', p.id==='panel-'+name));
     if(name === 'admin'){
-      warmUpBackend();        // 先喚醒後端
-      maybeAutoLoginAdmin();  // 記住過密碼就自動登入
+      // 不再預熱。預熱會在你打開後台時先送一個請求，你按登入時它可能還沒跑完，
+      // 登入就得排在它後面 → 卡門口。拿掉之後，「按登入」是唯一的請求，乾淨直達，
+      // 跟你那個從來不卡的網站一樣。記住的密碼還是幫你帶入欄位（不送出）。
+      prefillAdminPw();
     }
   }
   tabButtons.forEach(btn=>{
@@ -1454,18 +1456,14 @@
   function loadAdminCred(){ try{ return localStorage.getItem(ADMIN_CRED_KEY) || ''; }catch(e){ return ''; } }
   function clearAdminCred(){ try{ localStorage.removeItem(ADMIN_CRED_KEY); }catch(e){} }
 
-  let __adminAutoTried = false;
-  function maybeAutoLoginAdmin(){
-    if(__adminAutoTried || adminPassword) return false;    // 已試過或已登入就不做
-    const gate = document.getElementById('admin-gate');
-    if(!gate || gate.style.display === 'none') return false;// 已經在後台裡
-    const saved = loadAdminCred();
-    if(!saved) return false;
-    __adminAutoTried = true;
+  // 只把記住的密碼「帶入欄位」，不自動送出。
+  // 自動送出會在打開後台的瞬間就發登入請求，和預熱撞在一起搶資源、時好時壞；
+  // 改成你按一下登入才送 —— 只有一個請求，而且預熱已經先把後端叫醒 → 秒進。
+  function prefillAdminPw(){
+    if(adminPassword) return;                                // 已登入就不用
     const input = document.getElementById('admin-pw');
-    if(input) input.value = saved;
-    tryUnlockAdmin();                                       // 自動送出（密碼變了會自動清掉重來）
-    return true;                                            // 已經發出登入請求，外面就別再多發預熱
+    const saved = loadAdminCred();
+    if(input && saved && !input.value) input.value = saved;  // 幫你帶入，省得重打；送不送由你按
   }
 
   async function tryUnlockAdmin(){
