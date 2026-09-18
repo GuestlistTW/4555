@@ -1,404 +1,483 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>【TW Pride】10/24 週五晚餐名單確認｜Reservation Confirmation</title>
-<style>
-  :root{
-    /* 顏色 & 漸層（S2 版風格） */
-    --bg:#0A0B0F; --card:#10131A; --muted:#9AA4AF; --fg:#F2F5F8; --border:#1f2430;
-    --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444;
-    --rainbow: linear-gradient(90deg,#ff5f6d,#ffc371,#9be15d,#00e3ae,#45aaf2,#9b59b6);
-    --btn-grad: linear-gradient(90deg,#7dd3fc,#86efac);
-  }
-  *{box-sizing:border-box}
-  html,body{height:100%}
-  body{
-    margin:0;
-    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",ui-sans-serif,system-ui;
-    background: radial-gradient(800px 600px at 10% -10%, rgba(255,255,255,.06), transparent), var(--bg);
-    color:var(--fg);
-  }
-  a{color:inherit;text-decoration:none}
-  .wrap{max-width:980px;margin:28px auto 64px;padding:0 14px}
-  .title{font-size:26px;font-weight:900;letter-spacing:.3px;margin:4px 0 6px;color:#fff} /* 標題白字 */
-  .sub{color:var(--muted);font-size:13px;margin-bottom:12px}
-  .rainbow-line{height:2px;background:var(--rainbow);opacity:.6;border-radius:2px;margin:6px 0 14px}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Taiwan Pride — Proud Together</title>
+ <!-- 社群分享預覽（LINE / FB / Threads / X）-->
+<meta name="description" content="We're bringing together friends from around the world before the parade for an evening of food, conversation, and new connections. Whether you're local to Taipei or visiting from afar, there's a seat for you.">
 
-  /* 搜尋卡 */
-  .card{
-    position:relative;border-radius:16px;padding:14px;border:1px solid rgba(255,255,255,.06);
-    background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));
-    box-shadow:0 10px 30px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.03);
-  }
-  .row{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,2fr) minmax(0,1fr);gap:8px;align-items:end}
-  label{font-size:12px;color:var(--muted);margin-bottom:4px;display:block}
-  .input-wrap{display:flex;flex-direction:column;min-width:0}
-  input,button{width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--border);background:#0f1117;color:var(--fg);outline:none;font-size:14px}
-  input::placeholder{color:#6b7280}
-  /* 搜尋按鈕：漸層青色（S2）*/
-  button.primary{background:var(--btn-grad);border:0;color:#0b0c10;font-weight:900;letter-spacing:.2px}
-  button.primary:hover{filter:saturate(1.08);}
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://guestlisttw.github.io/test1/">
+<meta property="og:title" content="Taiwan Pride — Proud Together">
+<meta property="og:description" content="We're bringing together friends from around the world before the parade for an evening of food, conversation, and new connections. Whether you're local to Taipei or visiting from afar, there's a seat for you.">
+<meta property="og:image" content="https://cdn-general.cybassets.com/s/files/35135/theme/127586/assets/dinner10.jpg">
+<meta property="og:site_name" content="Taiwan Pride">
 
-  .preview{margin-top:8px;display:flex;gap:10px;flex-wrap:wrap}
-  .preview img{max-height:86px;border-radius:8px;border:1px solid #2b3244}
-
-  .result-head{font-size:13px;color:var(--muted);margin:10px 2px 6px}
-
-  /* 結果列表 */
-  .grid{display:flex;flex-direction:column;gap:6px}
-  .person{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px;display:grid;grid-template-columns:1fr;gap:6px}
-  .line{display:flex;gap:10px;align-items:center;justify-content:space-between}
-  .left,.right{display:flex;gap:10px;align-items:center;min-width:0}
-  .left .flag{font-size:18px}
-  .name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .ig{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-
-  /* 狀態徽章（描邊圈＋空心符號） */
-  .status{display:inline-flex;align-items:center;gap:8px}
-  .badge{width:22px;height:22px;border-radius:999px;display:grid;place-items:center;background:transparent}
-  .badge svg{width:14px;height:14px}
-  .badge.ok{border:2px solid var(--ok)}
-  .badge.warn{border:2px solid var(--warn)}
-  .badge.bad{border:2px solid var(--bad)}
-  .status-label{font-size:13px;color:#e5e7eb}
-
-  .link-btn{padding:8px 10px;border-radius:10px;border:1px solid #2b3244;background:#0f1117;color:#e5e7eb;text-decoration:none;font-size:12px}
-  .link-btn:hover{border-color:#3b82f6}
-
-  .actions{display:flex;gap:10px;justify-content:flex-end}
-  .btn{padding:8px 10px;border-radius:12px;border:1px solid #2b3244;background:#0f1117;color:#e5e7eb;cursor:pointer;font-weight:800;font-size:13px}
-  .btn:hover{border-image:var(--rainbow) 1;border-width:1px;border-style:solid}
-
-  /* 左下：僅一隻貓（上傳邀請卡底圖） */
-  .cat-wrap{position:fixed;left:12px;bottom:12px;display:flex;gap:8px;opacity:.9;z-index:30}
-  .cat-btn{width:56px;height:56px;border-radius:50%;background:#0f1117;border:1px solid #2b3244;display:grid;place-items:center;cursor:pointer;transition:transform .08s ease, box-shadow .2s}
-  .cat-btn:hover{box-shadow:0 0 0 2px rgba(255,255,255,.06), 0 8px 20px rgba(0,0,0,.35)}
-  .cat-btn:active{transform:scale(.97)}
-  .cat svg{width:30px;height:30px;stroke:#e5e7eb}
-
-  /* Toast */
-  .toast{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);background:#0f1117;border:1px solid #2b3244;color:#e5e7eb;padding:8px 12px;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.45);opacity:0;transition:opacity .25s;z-index:60}
-  .toast.show{opacity:1}
-
-  /* Modal */
-  .backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);z-index:50}
-  .modal{width:min(640px,92vw);background:#0f1117;border-radius:16px;border:1px solid #2b3244;padding:14px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
-  .modal .title2{margin:0 0 10px;font-size:18px;font-weight:800}
-  .modal .rb{height:2px;background:var(--rainbow);opacity:.5;border-radius:2px;margin-bottom:10px}
-  .opts{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 8px}
-  .opt{flex:1;min-width:240px;padding:10px 12px;border-radius:12px;border:1px dashed #2b3244;background:#0f1117;color:#9aa4af;cursor:pointer;text-align:center;font-weight:800}
-  .opt.active{color:#0b0c10;background:linear-gradient(90deg,#a7f3d0,#93c5fd);border:0}
-  textarea{width:100%;padding:10px 12px;border-radius:12px;border:1px solid #2b3244;background:#0f1117;color:#e5e7eb;min-height:90px}
-  .modal .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:10px}
-  .btn-line{border:1px solid #2b3244;background:#0f1117;color:#e5e7eb}
-  .btn-fill{background:transparent;border:1px solid transparent;border-image:var(--rainbow) 1;font-weight:900}
-
-  @media (max-width:860px){.row{grid-template-columns:1fr}.actions{justify-content:space-between}}
-</style>
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Taiwan Pride — Proud Together">
+<meta name="twitter:description" content="We're bringing together friends from around the world before the parade for an evening of food, conversation, and new connections. Whether you're local to Taipei or visiting from afar, there's a seat for you.">
+<meta name="twitter:image" content="https://cdn-general.cybassets.com/s/files/35135/theme/127586/assets/dinner10.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=13">
 </head>
 <body>
-  <div class="wrap">
-    <div class="title">【TW Pride】10/24 週五晚餐名單確認｜Reservation Confirmation</div>
-    <div class="rainbow-line"></div>
 
-    <div class="card">
-      <!-- 搜尋列 -->
-      <div class="row">
-        <div class="input-wrap">
-          <label>姓名 / NAME</label>
-          <input id="nameInput" list="nameList" placeholder="輸入或選擇姓名 / Type or choose a name" />
-          <datalist id="nameList"></datalist>
+<nav class="topnav">
+  <div class="brand"><span class="brand-dot"></span> Taiwan Pride</div>
+  <div class="topnav-links">
+    <div class="lang-picker">
+      <button class="lang-btn" id="lang-toggle-btn" aria-haspopup="listbox" aria-expanded="false"><span class="lang-emoji">🌐</span> 中文</button>
+      <div class="lang-menu" id="lang-menu" role="listbox" hidden>
+        <button type="button" class="lang-opt" data-lang="zh" role="option">中文</button>
+        <button type="button" class="lang-opt" data-lang="en" role="option">English</button>
+        <button type="button" class="lang-opt" data-lang="ja" role="option">日本語</button>
+        <button type="button" class="lang-opt" data-lang="ko" role="option">한국어</button>
+      </div>
+    </div>
+    <button class="tab-btn admin-tab small-admin" data-tab="admin" data-i18n="nav_admin">後台</button>
+  </div>
+</nav>
+
+<div class="banner">
+  <img class="banner-img" src="https://cdn-general.cybassets.com/s/files/35135/theme/127586/assets/dinner10.jpg" alt="Taiwan Pride" loading="eager" decoding="async">
+  <div class="banner-overlay">
+    <div class="banner-meta">
+      <span>📅 10/30 · 19:00</span>
+      <span>📍 <span data-i18n="banner_loc">鉅星匯國際宴會廳</span></span>
+    </div>
+  </div>
+</div>
+
+<div class="link-divider">
+  <svg viewBox="0 0 900 90" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="rb" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#FF4B5C"/>
+        <stop offset="20%" stop-color="#FF9F40"/>
+        <stop offset="40%" stop-color="#FFD93D"/>
+        <stop offset="60%" stop-color="#4ECB86"/>
+        <stop offset="80%" stop-color="#4D96FF"/>
+        <stop offset="100%" stop-color="#9B5DE5"/>
+      </linearGradient>
+    </defs>
+    <g stroke="url(#rb)" stroke-width="4" fill="none" stroke-linecap="round">
+      <path d="M10,60 Q40,20 70,60 T130,60 T190,60 T250,60 T310,60 T370,60 T430,60 T490,60 T550,60 T610,60 T670,60 T730,60 T790,60 T850,60 T890,60"/>
+    </g>
+    <g fill="url(#rb)">
+      <circle cx="70" cy="34" r="9"/>
+      <circle cx="190" cy="34" r="9"/>
+      <circle cx="310" cy="34" r="9"/>
+      <circle cx="430" cy="34" r="9"/>
+      <circle cx="550" cy="34" r="9"/>
+      <circle cx="670" cy="34" r="9"/>
+      <circle cx="790" cy="34" r="9"/>
+    </g>
+  </svg>
+</div>
+
+<div class="tabbar" id="tabbar">
+  <button class="tab-btn active" data-tab="info" data-i18n="nav_info">活動訊息</button>
+  <button class="tab-btn" data-tab="register" data-i18n="nav_register">報名及查詢</button>
+  <button class="tab-btn" data-tab="payment" data-i18n="nav_payment">匯款轉帳</button>
+  <button class="tab-btn" data-tab="gallery" data-i18n="nav_gallery">活動相簿</button>
+</div>
+
+<main>
+
+  <!-- ============ 活動訊息 ============ -->
+  <section class="panel active" id="panel-info">
+    <h2 class="section-title" data-i18n="info_title">活動訊息</h2>
+
+    <div class="prose">
+      <p class="tagline" data-i18n="info_tagline">TAIWAN PRIDE 邁入第三屆</p>
+      <p data-i18n="info_intro">持續邀請來自世界各地的朋友，在遊行前齊聚一堂，用一頓飯的時間認識彼此、交換這一年的故事。無論是台北在地朋友，還是遠道而來的旅人，這裡都留了你的位置。</p>
+    </div>
+
+    <div class="location-card">
+      <div class="ic-bar"></div>
+      <div class="ic-label" data-i18n="loc_label">地點</div>
+      <div class="ic-value" data-i18n="loc_value">鉅星匯國際宴會廳</div>
+      <div class="location-addr" data-i18n="loc_addr">台北市中山區新生北路二段28號2樓</div>
+      <div class="map-embed">
+        <iframe src="https://www.google.com/maps?q=鉅星匯國際宴會廳+台北市中山區新生北路二段28號2樓&output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+      </div>
+      <a class="map-btn" href="https://share.google/za3cx4h5xVsgRdsh3" target="_blank" rel="noopener" data-i18n="loc_btn">📍 在 Google 地圖開啟 →</a>
+    </div>
+
+    <div class="card-grid">
+      <div class="info-card">
+        <div class="ic-bar"></div>
+        <div class="ic-label" data-i18n="time_label">時間</div>
+        <div class="ic-value" data-i18n="time_value">10/30（五）18:00可入場</div>
+      </div>
+      <div class="info-card">
+        <div class="ic-bar"></div>
+        <div class="ic-label" data-i18n="fee_label">費用</div>
+        <div class="ic-value" data-i18n="fee_value">NT$1,200／人</div>
+      </div>
+      <div class="info-card">
+        <div class="ic-bar"></div>
+        <div class="ic-label" data-i18n="community_label">提醒</div>
+        <div class="ic-value" style="font-size:0.85rem; font-weight:500; font-family:'Inter';" data-i18n="community_value">為加快現場報到與入場流程，建議可由台灣朋友協助提前完成付款；若不便提前付款，亦可依現場流程辦理。</div>
+      </div>
+    </div>
+
+    <h3 class="subhead" data-i18n="notice_title">注意事項</h3>
+    <ul class="notice-list">
+      <li data-i18n="notice_1">因餐廳桌數有限，請盡速報名；如報名超額，主辦單位將協助辦理退費</li>
+      <li data-i18n="notice_2">現場僅提供無酒精飲品，酒水可自行攜帶</li>
+      <li data-i18n="notice_3">如活動當日臨時無法出席，請自行尋找替代人員頂替名額，恕不接受退款</li>
+      <li data-i18n="notice_4">攜伴出席者須與同行者一同完成報名與付款，並安排於同一桌</li>
+      <li data-i18n="notice_6">同行的攜伴會自動安排在同一桌，無需另外填寫；若想和其他組報名的朋友併桌，請在「與其他組併桌」填寫對方姓名與 IG，資訊不明確者恕無法安排</li>
+      <li data-i18n="notice_7">請盡可能於活動開始前入場，以免現場混亂</li>
+      <li data-i18n="notice_8">請尊重現場工作人員與其他賓客，主辦單位保有請不當行為者離場之權利</li>
+      <li data-i18n="notice_9">活動當天可能安排拍照攝影，若不希望入鏡請於報到時告知工作人員</li>
+    </ul>
+
+    <h3 class="subhead" data-i18n="seating_title">座位表</h3>
+    <div class="seating-slot">
+      <span data-i18n="seating_1">座位表預留區</span>
+      <span class="small" data-i18n="seating_2">活動確認桌數後，座位表將公布於此</span>
+    </div>
+  </section>
+
+  <!-- ============ 報名及查詢 ============ -->
+  <section class="panel" id="panel-register">
+    <h2 class="section-title" data-i18n="register_title">報名及查詢</h2>
+    <p class="section-desc" data-i18n="register_desc">填寫表單完成報名，或用報名時填寫的電話查詢目前狀態。</p>
+
+    <div class="form-toggle">
+      <button class="active" data-form="signup" data-i18n="toggle_signup">我要報名</button>
+      <button data-form="lookup" data-i18n="toggle_lookup">查詢報名狀態</button>
+    </div>
+
+    <div class="edit-banner" id="edit-banner">
+      <span id="edit-banner-text">✏️ 正在修改報名編號 <b id="edit-banner-id"></b> 的資料</span>
+      <button type="button" class="btn-secondary" id="edit-cancel-btn" data-i18n="edit_cancel_btn">放棄修改</button>
+    </div>
+
+    <form id="signup-form">
+      <div class="field-row">
+        <div class="field">
+          <label for="su-name" data-i18n="field_name">姓名 / Name</label>
+          <input type="text" id="su-name" required>
         </div>
-        <div class="input-wrap">
-          <label>IG 帳號 / IG</label>
-          <input id="igInput" list="igList" placeholder="輸入或選擇 IG / Type or choose IG" />
-          <datalist id="igList"></datalist>
+        <div class="field">
+          <label for="su-country" data-i18n="field_country">國籍 / Country</label>
+          <div class="cpick" id="su-country-picker"></div>
+          <input type="hidden" id="su-country" class="country-input" required>
+          <div class="country-hint idle" id="su-country-hint"></div>
         </div>
-        <div class="input-wrap">
-          <button id="searchBtn" class="primary">搜尋 / Search</button>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="su-email" data-i18n="field_email">Email</label>
+          <input type="email" id="su-email" required>
+        </div>
+        <div class="field">
+          <label for="su-phone" data-i18n="field_phone">聯絡電話</label>
+          <input type="tel" id="su-phone" required>
+          <div class="hint critical" data-i18n="field_phone_hint">※查詢報名狀態及付款詳情會用到這組電話，請務必確認填寫正確</div>
         </div>
       </div>
 
-      <!-- 底圖預覽（上傳成功才會出現縮圖） -->
-      <div id="bgPreview" class="preview" aria-label="invitation previews"></div>
-
-      <div id="head" class="result-head">資料載入中… / Loading roster…</div>
-      <div id="grid" class="grid"></div>
-    </div>
-  </div>
-
-  <!-- 左下角：一隻貓（上傳邀請卡底圖） -->
-  <div class="cat-wrap" aria-label="hidden-control">
-    <div id="btnUploadBG" class="cat-btn" title="上傳邀請卡底圖 Upload invitation background">
-      <svg class="cat" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M6 8C6 5 7 3 9.5 4.5L12 6l2.5-1.5C17 3 18 5 18 8c2 1 3 3.5 3 6 0 4-3.5 8-9 8S3 18 3 14c0-2.5 1-5 3-6Z" />
-      </svg>
-    </div>
-  </div>
-
-  <!-- 隱藏 input（只剩底圖） -->
-  <input id="fileBG" type="file" accept="image/*" style="display:none" />
-
-  <!-- Confirm Modal -->
-  <div id="confirmBackdrop" class="backdrop">
-    <div class="modal">
-      <div class="title2">出席確認 / Attendance Confirmation</div>
-      <div class="rb"></div>
-      <div class="opts">
-        <div class="opt" data-val="confirmed">確認訂位，我會參加 | Confirm reservation</div>
-        <div class="opt" data-val="cancelled">抱歉，無法參加 | Sorry - cannot attend</div>
+      <div class="field">
+        <label for="su-ig" data-i18n="field_ig">Instagram 帳號（必填）</label>
+        <input type="text" id="su-ig" placeholder="@your_ig" required>
       </div>
-      <div class="input-wrap"><label>備註 / Notes</label><textarea id="noteArea" placeholder="寫點想說的話 / Leave a note"></textarea></div>
-      <div class="actions">
-        <button id="confirmCancel" class="btn btn-line">取消 / Cancel</button>
-        <button id="confirmSubmit" class="btn btn-fill">送出 / Submit</button>
+      <div class="guest-section">
+        <label data-i18n="guest_label">攜伴（不含本人）</label>
+        <div id="existing-members" style="display:none;"></div>
+        <div class="hint" id="existing-members-hint" style="display:none;" data-i18n="existing_hint">※ 已報名的人不能在這裡刪除。若有人無法出席，請回到查詢結果，針對該位送出取消申請，由主辦單位確認。</div>
+        <div id="guest-rows"></div>
+        <button type="button" id="add-guest-btn" class="btn-add-guest" data-i18n="guest_add_btn">＋ 新增攜伴</button>
+        <div class="hint" id="guest-count-hint">尚未新增攜伴（總人數：1人，含本人）</div>
+      </div>
+
+      <div class="subtotal-card">
+        <span data-i18n="subtotal_label">應付金額小計</span>
+        <span class="subtotal-amount" id="subtotal-amount">NT$1,200</span>
+      </div>
+
+      <div class="field">
+        <label for="su-notes" data-i18n="field_notes">飲食限制或其他備註（選填）</label>
+        <textarea id="su-notes" rows="2"></textarea>
+      </div>
+
+      <div class="field">
+        <label data-i18n="field_tablewith">與其他組併桌（選填）</label>
+        <div class="field-row three-col">
+          <input type="text" id="su-tablewith-name" data-i18n-ph="field_tablewith_name_ph" placeholder="姓名">
+          <div class="ig-wrap">
+            <input type="text" id="su-tablewith-ig" autocomplete="off"
+                   role="combobox" aria-expanded="false" aria-autocomplete="list"
+                   aria-controls="ig-suggest"
+                   data-i18n-ph="field_tablewith_ig_ph" placeholder="IG">
+            <div class="ig-suggest" id="ig-suggest" role="listbox" hidden></div>
+          </div>
+          <div class="cpick" id="su-tablewith-country-picker"></div>
+          <input type="hidden" id="su-tablewith-country">
+        </div>
+        <div class="hint" data-i18n="field_tablewith_hint">你和你的攜伴本來就會安排在同一桌，不用填在這裡。這欄是給「想和其他組報名的朋友併桌」時用的，請填對方的姓名與 IG 以免同名認錯；資訊不清將無法安排</div>
+      </div>
+
+      <div class="field">
+        <label data-i18n="paymethod_label">付款方式</label>
+        <div class="radio-group">
+          <label class="radio-pill" id="pay-online-pill"><input type="radio" name="paymethod" value="online" checked> <span data-i18n="paymethod_online">線上付款</span></label>
+          <label class="radio-pill" id="pay-onsite-pill"><input type="radio" name="paymethod" value="onsite"> <span data-i18n="paymethod_onsite">現場付款</span></label>
+        </div>
+        <div class="hint warn" id="paymethod-warn" style="display:none;" data-i18n="paymethod_warn">台灣賓客請先完成線上匯款，報名才算完成，恕不提供現場付款</div>
+      </div>
+
+      <details class="notice-recap">
+        <summary data-i18n="notice_recap_summary">📋 再看一次注意事項</summary>
+        <ul class="notice-list" style="margin-top:12px;">
+          <li data-i18n="notice_1">因餐廳桌數有限，請盡速報名；如報名超額，主辦單位將協助辦理退費</li>
+          <li data-i18n="notice_2">現場僅提供無酒精飲品，酒水可自行攜帶</li>
+          <li data-i18n="notice_3">如活動當日臨時無法出席，請自行尋找替代人員頂替名額，恕不接受退款</li>
+          <li data-i18n="notice_4">攜伴出席者須與同行者一同完成報名與付款，並安排於同一桌</li>
+          <li data-i18n="notice_6">同行的攜伴會自動安排在同一桌，無需另外填寫；若想和其他組報名的朋友併桌，請在「與其他組併桌」填寫對方姓名與 IG，資訊不明確者恕無法安排</li>
+          <li data-i18n="notice_7">請盡可能於活動開始前入場，以免現場混亂</li>
+          <li data-i18n="notice_8">請尊重現場工作人員與其他賓客，主辦單位保有請不當行為者離場之權利</li>
+          <li data-i18n="notice_9">活動當天可能安排拍照攝影，若不希望入鏡請於報到時告知工作人員</li>
+        </ul>
+      </details>
+
+      <div class="agree-row">
+        <input type="checkbox" id="su-agree" required>
+        <label for="su-agree" data-i18n="agree_label">我已閱讀並同意「活動訊息」頁面中的注意事項</label>
+      </div>
+
+      <button type="submit" class="btn-primary" id="signup-submit-btn" data-i18n="signup_submit">送出報名</button>
+      <div class="form-msg" id="signup-msg" data-i18n="signup_msg">🎉 報名已送出！若選擇線上付款，請至「匯款轉帳」分頁完成付款並回報轉帳資訊。</div>
+      <div class="form-msg" id="signup-error" style="background:rgba(255,75,92,0.15); border-color:var(--red); color:var(--red);" data-i18n="signup_error">請完整填寫必填欄位（姓名、國籍、Email、電話），並勾選同意注意事項後再送出</div>
+    </form>
+
+    <form id="lookup-form" style="display:none;">
+      <div class="field">
+        <label for="lk-query" data-i18n="lookup_field">聯絡電話</label>
+        <input type="tel" id="lk-query" required>
+        <div class="hint" data-i18n="lookup_hint">請輸入報名時填寫的聯絡電話進行查詢</div>
+      </div>
+      <button type="submit" class="btn-primary" id="lookup-submit-btn" data-i18n="lookup_submit">查詢狀態</button>
+      <div class="form-msg" id="lookup-msg" data-i18n="lookup_msg">查無資料，請確認電話輸入是否正確，或聯繫主辦單位協助查詢。</div>
+    </form>
+
+    <div class="lookup-result" id="lookup-result">
+      <div class="lr-head">
+        <span class="lr-title" id="lr-name">—</span>
+        <span class="st-badge" id="lr-badge">—</span>
+      </div>
+      <div class="lr-row"><span class="lr-label" data-i18n="lr_regid">報名編號</span><span class="lr-value" id="lr-regid">—</span></div>
+      <div class="lr-row"><span class="lr-label" data-i18n="lr_count">出席人數</span><span class="lr-value" id="lr-count">—</span></div>
+      <div class="lr-row"><span class="lr-label" data-i18n="lr_due">應付金額</span><span class="lr-value" id="lr-due">—</span></div>
+      <div class="lr-row"><span class="lr-label" data-i18n="lr_method">付款方式</span><span class="lr-value" id="lr-method">—</span></div>
+      <div class="lr-note" id="lr-note"></div>
+
+      <div class="lr-members" id="lr-members"></div>
+
+      <div class="lr-editbar">
+        <button type="button" class="btn-secondary" id="lr-edit-btn" data-i18n="lr_edit_btn">✏️ 修改報名資料 / 加人</button>
       </div>
     </div>
+  </section>
+
+  <!-- ============ 匯款轉帳 ============ -->
+  <section class="panel" id="panel-payment">
+    <h2 class="section-title" data-i18n="payment_title">匯款轉帳</h2>
+    <p class="section-desc" data-i18n="payment_desc">完成報名後，請依下方資訊完成轉帳，並回報轉帳資料以利核對。</p>
+
+    <!-- 乾淨的單欄銀行資訊（已完全移除 pay-grid 與 qr-card） -->
+    <div class="bank-card" style="max-width: 500px; margin: 0 auto 26px;">
+      <div class="bank-row">
+        <span class="bl" data-i18n="bank_name_label">銀行</span>
+        <span class="bv">824 連線商業銀行 (LINE Bank)</span>
+      </div>
+      <div class="bank-row">
+        <span class="bl" data-i18n="bank_branch_label">分行</span>
+        <span class="bv" data-i18n="bank_branch_value">總行</span>
+      </div>
+      <div class="bank-row">
+        <span class="bl" data-i18n="bank_acct_label">帳號</span>
+        <span class="acct-wrap">
+          <span class="bv" id="acct-number">111009917651</span>
+          <button type="button" class="copy-btn" id="copy-acct-btn" data-i18n="copy_btn">複製帳號</button>
+        </span>
+      </div>
+    </div>
+
+    <form id="payment-form">
+      <div class="field-row">
+        <div class="field">
+          <label for="pay-name" data-i18n="pay_name_label">匯款人姓名</label>
+          <input type="text" id="pay-name" required>
+        </div>
+        <div class="field">
+          <label for="pay-phone" data-i18n="pay_phone_label">聯絡電話</label>
+          <input type="tel" id="pay-phone" required>
+          <div class="hint critical" data-i18n="pay_phone_hint">※請務必填寫報名時所使用的聯絡電話</div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="pay-last5" data-i18n="pay_last5_label">帳號後五碼</label>
+          <input type="text" id="pay-last5" maxlength="5" required>
+        </div>
+        <div class="field">
+          <label for="pay-amount" data-i18n="pay_amount_label">匯款金額</label>
+          <input type="number" id="pay-amount" required>
+        </div>
+      </div>
+      <div class="field">
+        <label for="pay-date" data-i18n="pay_date_label">匯款日期</label>
+        <input type="date" id="pay-date" required>
+      </div>
+      <button type="submit" class="btn-primary" id="payment-submit-btn" data-i18n="pay_submit">回報轉帳資訊</button>
+      <div class="hint warn" id="payment-error" style="display:none;"></div>
+      <div class="form-msg" id="payment-msg" data-i18n="pay_msg">✅ 已收到你的轉帳回報，我們會盡快核對並更新報名狀態。</div>
+    </form>
+  </section>
+  </section>
+
+  <!-- ============ 花絮 ============ -->
+  <section class="panel" id="panel-gallery">
+    <h2 class="section-title" data-i18n="gallery_title">活動相簿</h2>
+    <p class="section-desc" data-i18n="gallery_desc">活動照片將於活動結束後陸續更新於此。</p>
+
+    <div class="countdown-card">
+      <div class="countdown-label" data-i18n="countdown_label">距離 Taiwan Pride 還有</div>
+      <div class="countdown-grid">
+        <div class="countdown-unit"><span class="cd-num" id="cd-days">00</span><span class="cd-unit" data-i18n="countdown_days">天</span></div>
+        <div class="countdown-unit"><span class="cd-num" id="cd-hours">00</span><span class="cd-unit" data-i18n="countdown_hours">時</span></div>
+        <div class="countdown-unit"><span class="cd-num" id="cd-mins">00</span><span class="cd-unit" data-i18n="countdown_mins">分</span></div>
+        <div class="countdown-unit"><span class="cd-num" id="cd-secs">00</span><span class="cd-unit" data-i18n="countdown_secs">秒</span></div>
+      </div>
+    </div>
+
+    <div class="empty-state">
+      <div class="es-icon">📸</div>
+      <div data-i18n="gallery_empty">活動還沒開始，活動相簿先預留位置給你之後上傳照片</div>
+    </div>
+
+    <div class="gallery-grid">
+      <div class="gallery-slot" data-slot="1">照片位 1</div>
+      <div class="gallery-slot" data-slot="2">照片位 2</div>
+      <div class="gallery-slot" data-slot="3">照片位 3</div>
+      <div class="gallery-slot" data-slot="4">照片位 4</div>
+      <div class="gallery-slot" data-slot="5">照片位 5</div>
+      <div class="gallery-slot" data-slot="6">照片位 6</div>
+      <div class="gallery-slot" data-slot="7">照片位 7</div>
+      <div class="gallery-slot" data-slot="8">照片位 8</div>
+    </div>
+  </section>
+
+  <!-- ============ 後台 ============ -->
+  <section class="panel" id="panel-admin">
+    <h2 class="section-title" data-i18n="admin_title">後台</h2>
+    <p class="section-desc" data-i18n="admin_desc">工作人員專用，查看報名與匯款資料。</p>
+
+    <div class="admin-gate" id="admin-gate">
+      <div class="admin-gate-icon">🔒</div>
+      <h3 data-i18n="admin_gate_title">工作人員登入</h3>
+      <p data-i18n="admin_gate_desc">請輸入密碼查看後台資料</p>
+      <input type="password" id="admin-pw" data-i18n-ph="admin_gate_ph" placeholder="請輸入密碼">
+      <button class="btn-primary" id="admin-unlock-btn" data-i18n="admin_gate_btn">登入</button>
+      <div class="hint warn" id="admin-gate-error" style="display:none;" data-i18n="admin_gate_error">密碼錯誤，請再試一次</div>
+    </div>
+
+    <div class="admin-content" id="admin-content" style="display:none;">
+      <div class="warn-banner" id="warn-banner" style="display:none;"></div>
+
+      <div class="adm-viewtabs">
+        <button type="button" class="adm-viewtab active" data-view="list" data-i18n="admin_view_list">📋 報名名單</button>
+        <button type="button" class="adm-viewtab" data-view="log" data-i18n="admin_view_log">🕓 異動紀錄</button>
+      </div>
+
+      <details class="admin-logic admin-logic-top">
+        <summary data-i18n="admin_logic_title">操作說明</summary>
+        <ol>
+          <li data-i18n="admin_logic_1">款項狀態四種：<b>未收款</b> → <b>帳款確認中</b>（使用者回報匯款後自動變成這個）→ <b>已收款</b>，另有 <b>待補款</b>（報名後又加人）</li>
+          <li data-i18n="admin_logic_2">系統不比對金額。你在「匯款回報」分頁看到錢確實進來，直接按「已收款」即可，金額對不對由你判斷</li>
+          <li data-i18n="admin_logic_3">出席狀態（已報名／已取消）每個人各自獨立，主揪與攜伴都能單獨取消；取消後有效人數與應付金額會自動重算</li>
+          <li data-i18n="admin_logic_4">主揪取消後，這組仍然掛在他原本的電話底下，其他人照常用同一支電話查詢</li>
+          <li data-i18n="admin_logic_5">已收款的組別若事後加人，款項狀態會自動變成「待補款」，補款金額 = 新增人數 × NT$1,200</li>
+          <li data-i18n="admin_logic_6">退不退款、退多少由你決定，系統不會自動處理；決定後可寫在該組的「後台備註」留底</li>
+          <li data-i18n="admin_logic_7">後台不顯示完整電話。需要聯絡對方時請直接到試算表查看</li>
+        </ol>
+      </details>
+
+      <div id="admin-view-list">
+        <div class="admin-stats">
+          <div class="stat-box"><div class="stat-num" id="stat-groups">0</div><div class="stat-label" data-i18n="stat_groups">有效報名組數</div></div>
+          <div class="stat-box"><div class="stat-num" id="stat-people">0</div><div class="stat-label" data-i18n="stat_people">總人數</div></div>
+          <div class="stat-box"><div class="stat-num" style="color:var(--green);" id="stat-paid">0</div><div class="stat-label" data-i18n="stat_paid">已收款組數</div></div>
+          <div class="stat-box"><div class="stat-num" style="color:var(--orange);" id="stat-outstanding">NT$0</div><div class="stat-label" data-i18n="stat_outstanding">未收金額</div></div>
+          <div class="stat-box"><div class="stat-num" style="color:var(--yellow);" id="stat-topup">0</div><div class="stat-label" data-i18n="stat_topup">待補款組數</div></div>
+          <div class="stat-box"><div class="stat-num" style="color:var(--red);" id="stat-pending">0</div><div class="stat-label" data-i18n="stat_pending">待處理取消申請</div></div>
+        </div>
+
+        <div class="adm-toolbar">
+          <button type="button" class="btn-secondary" id="admin-refresh-btn" data-i18n="admin_refresh_btn">🔄 更新資料</button>
+          <span class="hint" id="admin-last-updated"></span>
+        </div>
+
+        <div class="admin-filters" id="admin-filters">
+          <button type="button" class="filter-btn active" data-filter="all" data-i18n="filter_all">全部</button>
+          <button type="button" class="filter-btn" data-filter="cancelreq" data-i18n="filter_cancelreq">⚠ 取消申請</button>
+          <button type="button" class="filter-btn" data-filter="none" data-i18n="filter_unpaid">未收款</button>
+          <button type="button" class="filter-btn" data-filter="checking" data-i18n="filter_checking">帳款確認中</button>
+          <button type="button" class="filter-btn" data-filter="topup" data-i18n="filter_topup">待補款</button>
+          <button type="button" class="filter-btn" data-filter="done" data-i18n="filter_success">已收款</button>
+          <button type="button" class="filter-btn" data-filter="cancelled" data-i18n="filter_cancelled">全數取消</button>
+        </div>
+
+        <div class="admin-country-row">
+          <span class="admin-country-label">🌍 <span data-i18n="filter_country_label">依國籍篩選</span></span>
+          <select id="admin-country-filter" class="admin-country-select">
+            <option value="all">全部國籍</option>
+          </select>
+        </div>
+
+        <div class="adm-list" id="admin-list">
+          <div class="adm-empty" data-i18n="admin_loading">載入中…</div>
+        </div>
+      </div>
+
+      <div id="admin-view-log" style="display:none;">
+        <div class="adm-toolbar">
+          <button type="button" class="btn-secondary" id="admin-log-refresh-btn" data-i18n="admin_log_refresh">🔄 重新載入紀錄</button>
+          <span class="hint" data-i18n="admin_log_hint">顯示最近 300 筆異動，完整內容（含修改前後的 JSON）保存在試算表的「異動紀錄」分頁。</span>
+        </div>
+        <div class="log-list" id="admin-log-list">
+          <div class="adm-empty" data-i18n="admin_loading">載入中…</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<footer data-i18n="footer_text">
+  Taiwan Pride — Proud Together ・ 如有問題請聯繫主辦單位
+</footer>
+
+<div class="modal-overlay" id="line-modal" style="display:none;">
+  <div class="modal-card">
+    <button class="modal-close" id="line-modal-close" aria-label="Close">✕</button>
+    <div class="modal-icon">🎉</div>
+    <h3 data-i18n="line_modal_title">報名已送出！</h3>
+    <p data-i18n="line_modal_desc">若選擇線上付款，請至「匯款轉帳」分頁完成轉帳並回報匯款資訊，我們會盡快核對並更新你的報名狀態。</p>
+    <button class="btn-primary" id="line-modal-ok" data-i18n="line_modal_close_btn">知道了</button>
   </div>
+</div>
 
-  <!-- Toast -->
-  <div id="toast" class="toast"></div>
+<div class="toast" id="toast"></div>
 
-  <!-- XLSX 只保留以後若要支援匯入 CSV 之類，但此版不用名單上傳了；保留不影響 -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="app.js?v=13"></script>
 
-  <script>
-  /* ========== (1) 設定：只需改這一行 ========== */
-  const WEB_APP_URL = '<<在這裡貼上你的 GAS /exec 網址>>'; // 例如：https://script.google.com/macros/s/xxxx/exec
-  const PASSWORD = '0714'; // 上傳底圖保護用
-
-  /* ========== (2) 狀態 ========== */
-  const state = {
-    rows: [],          // 雲端 roster
-    bgImages: [],      // 上傳的邀請卡底圖（只要一張也可）
-    selected: null,    // 正在 confirm 的人
-    confirmChoice: null
-  };
-
-  /* ========== (3) 小工具 ========== */
-  const $ = (id)=>document.getElementById(id);
-  const showToast = (msg)=>{ const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 1500) };
-  const norm = (s)=> (s||'').toString().trim().toLowerCase();
-  const unique = (arr)=>[...new Set(arr)];
-  const by = (k)=>(a,b)=> (a[k]||'').localeCompare(b[k]||'');
-
-  /* ========== (4) 讀雲端名單（GAS） ========== */
-  async function fetchRoster(){
-    try{
-      if(!WEB_APP_URL){ $('head').textContent='尚未設定資料端點 / No WEB_APP_URL'; return; }
-      const res = await fetch(WEB_APP_URL + '?mode=roster', { method:'GET', cache:'no-store' });
-      if(!res.ok) throw new Error('network');
-      const data = await res.json();
-      // 預期 data 為陣列，欄位：item/number/country/flag/name/ig/leader/link/status...
-      state.rows = Array.isArray(data) ? data : (data.rows || []);
-      rebuildDatalists();
-      $('head').textContent = '請於上方輸入「姓名或 IG」後搜尋 / Type NAME or IG to search';
-    }catch(e){
-      console.error(e);
-      $('head').textContent = '名單載入失敗 / Failed to load roster';
-    }
-  }
-
-  function rebuildDatalists(){
-    const dlN = $('nameList'); const dlI = $('igList');
-    dlN.innerHTML = ''; dlI.innerHTML = '';
-    unique(state.rows.map(r=>r.name).filter(Boolean).sort()).forEach(v=>{
-      const o=document.createElement('option'); o.value=v; dlN.appendChild(o);
-    });
-    unique(state.rows.map(r=>r.ig).filter(Boolean).sort()).forEach(v=>{
-      const o=document.createElement('option'); o.value=v; dlI.appendChild(o);
-    });
-  }
-
-  /* ========== (5) 上傳邀請卡底圖（只有這個需要密碼） ========== */
-  $('btnUploadBG').addEventListener('click', ()=>{
-    const p = prompt('請輸入密碼 / Enter password');
-    if(p===null) return;
-    if(p!==PASSWORD){ showToast('密碼錯誤 / Wrong password'); return; }
-    $('fileBG').click();
-  });
-  $('fileBG').addEventListener('change', async (e)=>{
-    const files = Array.from(e.target.files||[]); if(!files.length) return;
-    state.bgImages = [];
-    for(const f of files){
-      const img = await fileToImage(f);
-      state.bgImages.push(img);
-    }
-    renderBGPreview();
-    showToast('邀請函底圖已載入 / Invitation background loaded');
-    e.target.value='';
-  });
-  function fileToImage(file){
-    return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=rej; img.src=URL.createObjectURL(file); });
-  }
-  function renderBGPreview(){
-    const box=$('bgPreview'); box.innerHTML='';
-    state.bgImages.forEach(img=>{ const el=document.createElement('img'); el.src=img.src; box.appendChild(el);});
-  }
-
-  /* ========== (6) 搜尋 ========== */
-  $('searchBtn').addEventListener('click', search);
-  $('nameInput').addEventListener('keydown',e=>{if(e.key==='Enter') search();});
-  $('igInput').addEventListener('keydown',e=>{if(e.key==='Enter') search();});
-
-  function search(){
-    const qn = norm($('nameInput').value);
-    const qi = norm($('igInput').value);
-    if(!state.rows.length){ showToast('雲端名單尚未就緒 / Roster not ready'); return; }
-
-    let sel = null;
-    if(qi) sel = state.rows.find(r=>norm(r.ig)===qi);
-    if(!sel && qn) sel = state.rows.find(r=>norm(r.name)===qn);
-
-    let rows=[]; let leader='';
-    if(sel){ leader = sel.leader; rows = state.rows.filter(r=>norm(r.leader)===norm(leader)); }
-    else{
-      // 幫忙找：前綴或包含（不中斷排版）
-      const cand = state.rows.filter(r=> (qi && norm(r.ig).includes(qi)) || (qn && norm(r.name).includes(qn)) );
-      if(cand.length){ leader = cand[0].leader; rows = state.rows.filter(r=>norm(r.leader)===norm(leader)); }
-    }
-    renderList(rows, leader);
-  }
-
-  /* ========== (7) 列表渲染 ========== */
-  function renderList(rows, leader){
-    const grid = $('grid'); grid.innerHTML='';
-    if(!rows || !rows.length){ $('head').textContent='查無資料 / No results'; return; }
-    $('head').innerHTML = leader ? `桌長 / Leader：<b>${leader||'—'}</b>（${rows.length} 筆 / records）` : `共 ${rows.length} 筆 / records`;
-
-    rows.sort((a,b)=> by('country')(a,b) || by('name')(a,b));
-    for(const r of rows){ grid.appendChild(renderPerson(r)); }
-  }
-
-  function renderPerson(r){
-    const card = document.createElement('div'); card.className='person';
-
-    // 第一行：🇹🇼 +「國家 / 姓名 / IG」平均分散
-    const L1 = document.createElement('div'); L1.className='line';
-    const left1 = document.createElement('div'); left1.className='left';
-    const flag = document.createElement('div'); flag.className='flag'; flag.textContent = r.flag || '—';
-    const name = document.createElement('div'); name.className='name';
-    name.textContent = `${r.country||'—'} / ${r.name||'—'} / ${r.ig||'—'}`;
-    left1.append(flag, name);
-    L1.append(left1, document.createElement('div'));
-
-    // 第二行（狀態 + 連結合併）
-    const L2 = document.createElement('div'); L2.className='line';
-    const left2 = document.createElement('div'); left2.className='left'; left2.append(buildStatus(r.status));
-    const right2 = document.createElement('div'); right2.className='right';
-    if(r.link){ const a=document.createElement('a'); a.href=r.link; a.target='_blank'; a.rel='noopener noreferrer'; a.className='link-btn'; a.textContent='開啟連結 / Open link'; right2.appendChild(a); }
-    L2.append(left2,right2);
-
-    // 第三行：Confirm / 邀請函下載
-    const L3 = document.createElement('div'); L3.className='actions';
-    const btnC = document.createElement('button'); btnC.className='btn'; btnC.textContent='確認 / Confirm';
-    btnC.addEventListener('click',()=> openConfirm(r));
-    const btnD = document.createElement('button'); btnD.className='btn'; btnD.textContent='邀請函下載 / Download Invite';
-    btnD.addEventListener('click',()=> downloadInvite(r));
-    L3.append(btnC, btnD);
-
-    card.append(L1,L2,L3);
-    return card;
-  }
-
-  function buildStatus(status){
-    const box=document.createElement('div'); box.className='status';
-    const s = norm(status);
-    let type='warn', label='未回覆 / Pending', icon='?';
-    if(s==='confirmed'){ type='ok'; label='已確定訂位 / Confirmed'; icon='✔'; }
-    else if(s==='cancelled'){ type='bad'; label='取消參加 / Cancelled'; icon='✕'; }
-    const badge=document.createElement('div'); badge.className='badge '+type; badge.innerHTML = svgIcon(icon);
-    const lab=document.createElement('div'); lab.className='status-label'; lab.textContent=label;
-    box.append(badge,lab); return box;
-  }
-  function svgIcon(char){
-    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><text x="12" y="16" text-anchor="middle" font-size="14" font-family="ui-sans-serif, system-ui">${char}</text></svg>`;
-  }
-
-  /* ========== (8) Confirm Modal ========== */
-  const modal=$('confirmBackdrop'); const noteArea=$('noteArea'); const btnSubmit=$('confirmSubmit');
-  document.querySelectorAll('.opt').forEach(el=> el.addEventListener('click',()=> selectOpt(el)) );
-  $('confirmCancel').addEventListener('click', ()=> closeModal());
-
-  function openConfirm(person){
-    state.selected = person; state.confirmChoice = null; noteArea.value='';
-    document.querySelectorAll('.opt').forEach(o=>o.classList.remove('active'));
-    modal.style.display='flex';
-  }
-  function selectOpt(el){
-    document.querySelectorAll('.opt').forEach(o=>o.classList.remove('active'));
-    el.classList.add('active'); state.confirmChoice = el.dataset.val;
-  }
-  function closeModal(){ modal.style.display='none'; }
-
-  btnSubmit.addEventListener('click', async ()=>{
-    if(!state.confirmChoice){ showToast('請選擇一個選項 / Please choose an option'); return; }
-    const person = state.selected; if(!person){ closeModal(); return; }
-    const payload = {
-      action:'updateStatus',
-      item: person.item, number: person.number, country: person.country, flag: person.flag,
-      name: person.name, ig: person.ig, leader: person.leader, link: person.link,
-      status: state.confirmChoice, notes: noteArea.value.trim(), ts: Date.now()
-    };
-
-    btnSubmit.disabled=true; btnSubmit.textContent='傳送中… / Sending…';
-    try{
-      const res = await fetch(WEB_APP_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(payload), mode:'cors', cache:'no-store' });
-      let ok=false; try{ const j=await res.json(); ok=!!j.ok || Array.isArray(j); }catch{ ok=res.ok; }
-      if(!ok) throw new Error('SERVER_NOK');
-      // 更新本地狀態
-      person.status = state.confirmChoice;
-      showToast('已送出並更新狀態 / Submitted & updated');
-      closeModal();
-      search(); // 重新渲染
-    }catch(err){
-      console.error(err);
-      showToast('送出失敗，請稍後再試 / Failed to submit');
-    }finally{ btnSubmit.disabled=false; btnSubmit.textContent='送出 / Submit'; }
-  });
-
-  /* ========== (9) 邀請卡：把 item-number 貼進安全區 ========== */
-  async function downloadInvite(person){
-    if(!state.bgImages.length){ showToast('請先上傳邀請卡底圖 / Upload background first'); return; }
-    const img = state.bgImages[0];
-    const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
-    const W = img.naturalWidth, H = img.naturalHeight; canvas.width=W; canvas.height=H;
-    ctx.drawImage(img,0,0,W,H);
-
-    const isH = W>=H;
-    // 你給的「紅框/黑框」概念用比例還原：不會壓到其他文字
-    const box = isH
-      ? { x: 0.60*W, y: 0.70*H, w: 0.35*W, h: 0.18*H } // 橫式
-      : { x: 0.15*W, y: 0.60*H, w: 0.70*W, h: 0.16*H }; // 直式
-
-    const text = `${person.item||''}-${person.number||''}`.trim();
-    const fontFamily = 'ui-sans-serif, system-ui, "Noto Sans TC", "Microsoft JhengHei"';
-    ctx.textBaseline='middle'; ctx.textAlign='center';
-    // 自動縮放（白字＋淡陰影，維持高級感）
-    let fontSize = Math.min(box.h*0.6, box.w*0.22);
-    while(fontSize>10){
-      ctx.font = `800 ${fontSize}px ${fontFamily}`;
-      const w = ctx.measureText(text).width;
-      if(w<=box.w) break;
-      fontSize -= 1;
-    }
-    const cx = box.x + box.w/2, cy = box.y + box.h/2;
-    ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur=8; ctx.fillStyle = '#fff';
-    ctx.fillText(text, cx, cy);
-
-    const a=document.createElement('a');
-    const safeName = (person.name||'guest').replace(/[^\w\u4e00-\u9fa5-]+/g,'_');
-    a.download = `${person.item||''}-${person.number||''}-${safeName}.png`;
-    a.href = canvas.toDataURL('image/png'); a.click();
-  }
-
-  /* ========== (10) 啟動 ========== */
-  function init(){
-    fetchRoster(); // 進站自動抓雲端名單
-  }
-  init();
-  </script>
 </body>
 </html>
