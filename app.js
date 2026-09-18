@@ -1,4 +1,4 @@
-  // ===================== i18n =====================
+// ===================== i18n =====================
   const I18N = {
     nav_info:{en:'Event Info', ja:'イベント情報', ko:'행사 정보'}, nav_register:{en:'Register & Lookup', ja:'申込・照会', ko:'신청 및 조회'}, nav_payment:{en:'Payment', ja:'銀行振込', ko:'송금 안내'},
     nav_gallery:{en:'Gallery', ja:'フォトギャラリー', ko:'사진첩'}, nav_admin:{en:'Admin', ja:'管理画面', ko:'관리자'},
@@ -438,6 +438,17 @@
 
   async function postToBackend(payload){
     if(!GAS_URL) return { ok:false, reason:'no-url' };
+
+    // ── 冪等鍵（idempotency key）──
+    // 一次「送出」在底下會嘗試三條路：POST → GET → JSONP。只要第一條在後端已經
+    // 寫進去、但回應逾時或不是 JSON，就會往下再送一次 —— 攜伴人多、寫入較慢時
+    // 特別容易發生，於是同一筆報名被寫兩次（本人那組已存在→第二次走「修改」把攜伴
+    // 又補一遍，看起來就是攜伴重覆）。
+    // 這裡讓同一次送出的三條路共用同一個 _rid，後端看到重覆的 _rid 就直接回傳
+    // 第一次的結果、不再寫入。這樣不管逾時或備援，都只會成立一筆。
+    if(payload && typeof payload === 'object' && !payload._rid){
+      payload._rid = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+    }
 
     // AbortController：逾時後真的把請求中斷。
     // 少了這個，逾時的 fetch 會繼續在背景跑並佔著後端執行資源，
@@ -1460,9 +1471,10 @@
     btn.textContent = isEn() ? 'Signing in…' : '登入中…';
     errEl.style.display = 'none';
 
-    // 一次要回「驗證結果 + 名單」，少一趟往返。
-    // 分兩次呼叫等於兩次冷啟動風險相加，這是進後台最主要的等待來源。
-    const r = await postToBackend({ type:'adminBootstrap', password: pw });
+    // 只驗密碼（adminLogin 不讀表，很快）。密碼對了就先進後台，
+    // 名單另外用 loadAdminList() 讀 —— 這樣「進得去」只等密碼驗證，
+    // 不會被讀整張表卡在門外。
+    const r = await postToBackend({ type:'adminLogin', password: pw });
     const body = r.body || {};
 
     btn.disabled = false;
@@ -1511,17 +1523,20 @@
     adminOperator = body.operator || '';
     input.value = '';
 
+    // 密碼對了 → 立刻進後台。名單改成進來之後才讀：
+    // 讀表慢（或冷啟動）時，人已經在後台看著「載入中」，而不是卡在登入頁外面。
+    // 就算名單讀失敗，也只是名單區顯示重試訊息，不會把人踢回門外。
     document.getElementById('admin-gate').style.display = 'none';
     document.getElementById('admin-content').style.display = 'block';
     showToast((isEn() ? 'Welcome, ' : '歡迎，') + adminOperator);
 
-    // 名單已經跟著登入一起回來了，直接畫，不用再打一次後端
     if(Array.isArray(body.results)){
+      // 相容舊的 adminBootstrap：名單若真的跟著回來就直接畫，省一趟
       showWarnings(body);
       applyAdminData(body.results);
     } else {
       document.getElementById('admin-list').innerHTML =
-        '<div class="adm-empty">' + (isEn() ? 'Loading…' : '載入中…') + '</div>';
+        '<div class="adm-empty">' + (isEn() ? 'Loading list…' : '名單載入中…') + '</div>';
       loadAdminList();
     }
   }
